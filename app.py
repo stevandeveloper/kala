@@ -293,3 +293,24 @@ if __name__ == "__main__":
     with app.app_context():
         db.create_all()
     app.run(host="0.0.0.0", port=5000, debug=True)
+# ---------- Setup rápido: crear admin y catálogo ----------
+from flask import Response
+
+@app.route("/init")
+def init_db_and_admin():
+    """Crea tablas y un admin por única vez si no hay usuarios."""
+    db.create_all()
+    if User.query.count() > 0:
+        return Response("Ya hay usuarios creados. Nada que hacer.", mimetype="text/plain")
+    admin_email = os.environ.get("ADMIN_EMAIL", "admin@kala")
+    admin_pass = os.environ.get("ADMIN_PASSWORD", "kala123")
+    u = User(name="Admin", email=admin_email, role="admin")
+    u.set_password(admin_pass)
+    db.session.add(u)
+    db.session.commit()
+    msg = f"✅ Admin creado: {admin_email} / {admin_pass} — Cambialo desde Usuarios."
+    return Response(msg, mimetype="text/plain")
+
+@app.route("/admin/seed")
+def seed_catalog():
+    """Carga servi
