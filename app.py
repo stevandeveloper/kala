@@ -1,9 +1,8 @@
-
 import os
 from datetime import datetime
 from math import ceil
 
-from flask import Flask, render_template, redirect, url_for, request, flash, session
+from flask import Flask, render_template, redirect, url_for, request, flash, session, Response
 from flask_sqlalchemy import SQLAlchemy
 from flask_login import LoginManager, login_user, login_required, current_user, logout_user, UserMixin
 from werkzeug.security import generate_password_hash, check_password_hash
@@ -76,22 +75,30 @@ class ProductSale(db.Model):
 
 # ---------- Auth ----------
 @login_manager.user_loader
-def load_user(uid):
+def load_user(uid: str):
     return User.query.get(int(uid))
 
 # ---------- Helpers ----------
-def ar(n):
+def ar(n: int) -> str:
     return f"${n:,.0f}".replace(",", ".")
 
-def price_for_medium(efectivo, transf, medio):
+def price_for_medium(efectivo: int, transf: int | None, medio: str) -> int:
     if medio == "Efectivo":
         return efectivo
     return transf if transf is not None else ceil(efectivo * (1 + RECARGO_TRANSF_TJ))
 
-def commission_for_base(base_efectivo):
+def commission_for_base(base_efectivo: int) -> int:
     return round(base_efectivo * COMISION_PCT)
 
-# ---------- CLI init ----------
+# ---------- Context (año y fecha para todas las vistas) ----------
+@app.context_processor
+def inject_dates():
+    return {
+        "year": datetime.utcnow().year,
+        "today": datetime.utcnow().strftime("%d/%m/%Y"),
+    }
+
+# ---------- CLI init (para correr local: `flask init`) ----------
 @app.cli.command("init")
 def init_cmd():
     db.create_all()
@@ -106,6 +113,25 @@ def init_cmd():
     print("BD lista.")
 
 # ---------- Routes ----------
+@app.route("/__ping")
+def __ping():
+    return "ok", 200
+
+@app.route("/init")
+def init_db_and_admin():
+    """Crea tablas y un admin por única vez si no hay usuarios (útil en Render)."""
+    with app.app_context():
+        db.create_all()
+        if User.query.count() > 0:
+            return Response("Ya hay usuarios creados. Nada que hacer.", mimetype="text/plain")
+        admin_email = os.environ.get("ADMIN_EMAIL", "admin@kala")
+        admin_pass = os.environ.get("ADMIN_PASSWORD", "kala123")
+        u = User(name="Admin", email=admin_email, role="admin")
+        u.set_password(admin_pass)
+        db.session.add(u)
+        db.session.commit()
+        return Response(f"✅ Admin creado: {admin_email} / {admin_pass}", mimetype="text/plain")
+
 @app.route("/")
 @login_required
 def home():
@@ -134,7 +160,8 @@ def login():
         u = User.query.filter_by(email=email).first()
         if u and u.check_password(pw):
             login_user(u)
-            return redirect(url_for("home"))
+            nxt = request.args.get("next")
+            return redirect(nxt or url_for("home"))
         flash("Usuario o contraseña incorrectos", "danger")
     return render_template("login.html")
 
@@ -145,7 +172,7 @@ def logout():
     return redirect(url_for("login"))
 
 # ---------- Admin: Catálogo & Usuarios ----------
-def ensure_admin():
+def ensure_admin() -> bool:
     if current_user.role != "admin":
         flash("Solo admin.", "warning")
         return False
@@ -154,22 +181,28 @@ def ensure_admin():
 @app.route("/admin/catalogo", methods=["GET","POST"])
 @login_required
 def admin_catalog():
-    if not ensure_admin(): return redirect(url_for("home"))
+    if not ensure_admin():
+        return redirect(url_for("home"))
+
     if request.method == "POST":
         kind = request.form["kind"]
         name = request.form["name"].strip()
         efectivo = int(request.form["efectivo"] or 0)
         transf = request.form.get("transf", "").strip()
         transf_val = int(transf) if transf else None
+
         if kind == "service":
             db.session.add(Service(name=name, efectivo=efectivo, transf=transf_val))
         else:
             stock = int(request.form.get("stock") or 0)
             db.session.add(Product(name=name, efectivo=efectivo, transf=transf_val, stock=stock))
+
         db.session.commit()
         flash("Guardado", "success")
         return redirect(url_for("admin_catalog"))
-    return render_template("catalog.html",
+
+    return render_template(
+        "catalog.html",
         services=Service.query.order_by(Service.name.asc()).all(),
         products=Product.query.order_by(Product.name.asc()).all()
     )
@@ -177,18 +210,23 @@ def admin_catalog():
 @app.route("/admin/usuarios", methods=["GET","POST"])
 @login_required
 def admin_users():
-    if not ensure_admin(): return redirect(url_for("home"))
+    if not ensure_admin():
+        return redirect(url_for("home"))
+
     if request.method == "POST":
         name = request.form["name"].strip()
         email = request.form["email"].strip()
         role = request.form["role"]
         pw = request.form["password"]
+
         u = User(name=name, email=email, role=role)
         u.set_password(pw)
         db.session.add(u)
         db.session.commit()
+
         flash("Usuario creado", "success")
         return redirect(url_for("admin_users"))
+
     return render_template("users.html", users=User.query.order_by(User.name.asc()).all())
 
 # ---------- Registrar ventas ----------
@@ -196,45 +234,69 @@ def admin_users():
 @login_required
 def venta_servicio():
     services = Service.query.order_by(Service.name.asc()).all()
+
     if request.method == "POST":
         date = datetime.strptime(request.form["date"], "%Y-%m-%d").date()
         client = request.form["client"]
         service_id = int(request.form["service_id"])
         medio = request.form["medio"]
+
         svc = Service.query.get(service_id)
         base = svc.efectivo
         charged = price_for_medium(svc.efectivo, svc.transf, medio)
-        sale = ServiceSale(date=date, client_name=client, service_id=service_id,
-                           medio=medio, price_charged=charged,
-                           commission_base=base, user_id=current_user.id)
+
+        sale = ServiceSale(
+            date=date,
+            client_name=client,
+            service_id=service_id,
+            medio=medio,
+            price_charged=charged,
+            commission_base=base,
+            user_id=current_user.id
+        )
         db.session.add(sale)
         db.session.commit()
+
         flash("Venta de servicio cargada", "success")
         return redirect(url_for("home"))
+
     return render_template("venta_servicio.html", services=services, today=datetime.utcnow().strftime("%Y-%m-%d"))
 
 @app.route("/venta/producto", methods=["GET","POST"])
 @login_required
 def venta_producto():
     products = Product.query.order_by(Product.name.asc()).all()
+
     if request.method == "POST":
         date = datetime.strptime(request.form["date"], "%Y-%m-%d").date()
         product_id = int(request.form["product_id"])
         medio = request.form["medio"]
         qty = int(request.form["qty"] or 1)
+
         p = Product.query.get(product_id)
         unit_base = p.efectivo
         unit_charged = price_for_medium(p.efectivo, p.transf, medio)
         charged = unit_charged * qty
-        sale = ProductSale(date=date, product_id=product_id, medio=medio, qty=qty,
-                           price_charged=charged, commission_base=unit_base*qty,
-                           user_id=current_user.id)
-        # opcional: descontar stock si admin así lo setea
+
+        sale = ProductSale(
+            date=date,
+            product_id=product_id,
+            medio=medio,
+            qty=qty,
+            price_charged=charged,
+            commission_base=unit_base * qty,
+            user_id=current_user.id
+        )
+
+        # opcional: descontar stock
         p.stock = (p.stock or 0) - qty
+
         db.session.add(sale)
         db.session.commit()
+
         flash("Venta de producto cargada", "success")
         return redirect(url_for("home"))
+
     return render_template("venta_producto.html", products=products, today=datetime.utcnow().strftime("%Y-%m-%d"))
 
 # ---------- Reportes ----------
@@ -247,16 +309,20 @@ def mis_comisiones():
     else:
         sales_s = ServiceSale.query.filter_by(user_id=current_user.id).all()
         sales_p = ProductSale.query.filter_by(user_id=current_user.id).all()
+
     total_base = sum(s.commission_base for s in sales_s) + sum(p.commission_base for p in sales_p)
     total_com = commission_for_base(total_base)
     total_fact = sum(s.price_charged for s in sales_s) + sum(p.price_charged for p in sales_p)
+
     return render_template("comisiones.html", total_base=total_base, total_com=total_com, total_fact=total_fact, ar=ar)
 
-# ---------- Seed de catálogo (tu lista) ----------
+# ---------- Seed de catálogo ----------
 @app.route("/admin/seed")
 @login_required
 def admin_seed():
-    if not ensure_admin(): return redirect(url_for("home"))
+    if not ensure_admin():
+        return redirect(url_for("home"))
+
     if Service.query.count() == 0:
         services = [
             ("Alisado (con formol)", 52500, 58500),
@@ -274,42 +340,21 @@ def admin_seed():
         ]
         for n, e, t in services:
             db.session.add(Service(name=n, efectivo=e, transf=t))
+
     if Product.query.count() == 0:
         products = [
-            ("Protector térmico", 8500, int(8500*1.15), 0),
-            ("Baño de crema Biotina", 6500, int(6500*1.15), 0),
-            ("Shampoo neutro", 4800, int(4800*1.15), 0),
-            ("Keratina líquida", 12000, int(12000*1.15), 0),
-            ("Biotina líquida", 7500, int(7500*1.15), 0),
+            ("Protector térmico", 8500, int(8500 * 1.15), 0),
+            ("Baño de crema Biotina", 6500, int(6500 * 1.15), 0),
+            ("Shampoo neutro", 4800, int(4800 * 1.15), 0),
+            ("Keratina líquida", 12000, int(12000 * 1.15), 0),
+            ("Biotina líquida", 7500, int(7500 * 1.15), 0),
         ]
         for n, e, t, s in products:
             db.session.add(Product(name=n, efectivo=e, transf=t, stock=s))
+
     db.session.commit()
     flash("Catálogo cargado", "success")
     return redirect(url_for("admin_catalog"))
-
-# ---------- Run ----------
-# ---------- Setup (solo primera vez) ----------
-
-from flask import Response
-@app.route("/init")
-def init_db_and_admin():
-    """Crea tablas y un admin por única vez si no hay usuarios."""
-    with app.app_context():
-        db.create_all()
-        if User.query.count() > 0:
-            return Response("Ya hay usuarios creados. Nada que hacer.", mimetype="text/plain")
-        admin_email = os.environ.get("ADMIN_EMAIL", "admin@kala")
-        admin_pass = os.environ.get("ADMIN_PASSWORD", "kala123")
-        u = User(name="Admin", email=admin_email, role="admin")
-        u.set_password(admin_pass)
-        db.session.add(u)
-        db.session.commit()
-        return Response(f"✅ Admin creado: {admin_email} / {admin_pass}", mimetype="text/plain")
-
-# ⚠️ Importante:
-# Dejamos UNA SOLA seed: la que ya tenés más arriba (@app.route('/admin/seed') con login).
-# Eliminamos la segunda seed que había cortada al final para evitar conflictos.
 
 # ---------- Run local ----------
 if __name__ == "__main__":
