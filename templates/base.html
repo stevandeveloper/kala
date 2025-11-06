@@ -16,9 +16,19 @@
     <a href="{{ url_for('venta_producto') }}">Producto</a>
     <a href="{{ url_for('mis_comisiones') }}">Mis comisiones</a>
     {% if current_user.role == 'admin' %}
-      <a href="{{ url_for('admin_catalog') }}">Catálogo</a>
-      <a href="{{ url_for('admin_users') }}">Usuarios</a>
-      <a href="{{ url_for('admin_seed') }}">Seed</a>
+     <a href="{{ url_for('home') }}">Inicio</a>
+<a href="{{ url_for('venta_servicio') }}">Servicio</a>
+<a href="{{ url_for('venta_producto') }}">Producto</a>
+<a href="{{ url_for('mis_comisiones') }}">Mis comisiones</a>
+
+{% if current_user.role == 'admin' %}
+    <a href="{{ url_for('admin_catalog') }}">Catálogo</a>
+    <a href="{{ url_for('admin_users') }}">Usuarios</a>
+    <a href="{{ url_for('admin_seed') }}">Seed</a>
+{% endif %}
+
+<a href="{{ url_for('logout') }}">Salir</a>
+
     {% endif %}
     <a href="{{ url_for('logout') }}">Salir</a>
   </nav>
