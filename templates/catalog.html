@@ -1,0 +1,46 @@
+{% extends "base.html" %}
+{% block content %}
+<h2>Catálogo</h2>
+<div class="grid">
+  <div class="card">
+    <h3>Servicios</h3>
+    <form method="post">
+      <input type="hidden" name="kind" value="service">
+      <label>Nombre</label>
+      <input name="name" required>
+      <label>Precio efectivo</label>
+      <input name="efectivo" type="number" required>
+      <label>Transf/Tarjeta (opcional)</label>
+      <input name="transf" type="number">
+      <button>Agregar servicio</button>
+    </form>
+    <table>
+      <tr><th>Servicio</th><th>Efectivo</th><th>Transf/Tj</th></tr>
+      {% for s in services %}
+      <tr><td>{{ s.name }}</td><td>{{ ar(s.efectivo) }}</td><td>{{ ar(s.transf) if s.transf else '+15%' }}</td></tr>
+      {% endfor %}
+    </table>
+  </div>
+  <div class="card">
+    <h3>Productos</h3>
+    <form method="post">
+      <input type="hidden" name="kind" value="product">
+      <label>Nombre</label>
+      <input name="name" required>
+      <label>Precio efectivo</label>
+      <input name="efectivo" type="number" required>
+      <label>Transf/Tarjeta (opcional)</label>
+      <input name="transf" type="number">
+      <label>Stock inicial</label>
+      <input name="stock" type="number" value="0">
+      <button>Agregar producto</button>
+    </form>
+    <table>
+      <tr><th>Producto</th><th>Efectivo</th><th>Transf/Tj</th><th>Stock</th></tr>
+      {% for p in products %}
+      <tr><td>{{ p.name }}</td><td>{{ ar(p.efectivo) }}</td><td>{{ ar(p.transf) if p.transf else '+15%' }}</td><td>{{ p.stock }}</td></tr>
+      {% endfor %}
+    </table>
+  </div>
+</div>
+{% endblock %}

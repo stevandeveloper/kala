@@ -1,0 +1,20 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="login-hero">
+  <div class="login-card">
+    <div class="logo">
+      {% if False %}<img src="{{ url_for('static', filename='logo.png') }}" alt="KA">{% endif %}
+      KA
+    </div>
+    <h2 class="login-title">KALA • Gestión del Salón</h2>
+    <form method="post" style="text-align:left">
+      <label>Email</label>
+      <input name="email" type="email" required placeholder="tu@kala">
+      <label>Contraseña</label>
+      <input name="password" type="password" required placeholder="••••••••">
+      <button type="submit">INGRESAR</button>
+    </form>
+    <p class="help">Si es tu primer ingreso, pedile al admin que te cree el usuario.</p>
+  </div>
+</div>
+{% endblock %}

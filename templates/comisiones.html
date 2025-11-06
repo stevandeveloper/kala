@@ -1,0 +1,9 @@
+{% extends "base.html" %}
+{% block content %}
+<h2>Resumen de comisiones</h2>
+<div class="card total">
+  <div>Total base (efectivo)<span>{{ ar(total_base) }}</span></div>
+  <div>Comisión 40%<span>{{ ar(total_com) }}</span></div>
+  <div>Total facturado (con recargos)<span>{{ ar(total_fact) }}</span></div>
+</div>
+{% endblock %}

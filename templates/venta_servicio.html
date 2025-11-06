@@ -1,0 +1,18 @@
+{% extends "base.html" %}
+{% block content %}
+<h2>Cargar servicio</h2>
+<div class="card">
+  <form method="post">
+    <label>Fecha</label><input type="date" name="date" value="{{ today }}">
+    <label>Nombre clienta</label><input name="client" required>
+    <label>Servicio</label>
+    <select name="service_id">
+      {% for s in services %}<option value="{{ s.id }}">{{ s.name }} — Efectivo {{ ar(s.efectivo) }}{% if s.transf %} / Transf/Tj {{ ar(s.transf) }}{% else %} / Transf/Tj (+15%){% endif %}</option>{% endfor %}
+    </select>
+    <label>Medio de pago</label>
+    <select name="medio"><option>Efectivo</option><option>Transferencia</option><option>Tarjeta</option></select>
+    <button>Guardar</button>
+  </form>
+  <p class="help">La comisión de la profesional se calcula sobre el precio <b>efectivo</b> aunque el cobro sea por transferencia o tarjeta (+15%).</p>
+</div>
+{% endblock %}

@@ -1,0 +1,30 @@
+{% extends "base.html" %}
+{% block content %}
+<h1>Hola, {{ current_user.name }}!</h1>
+<div class="grid">
+  <div class="card">
+    <h3>Últimas ventas de servicios</h3>
+    <table>
+      <tr><th>Fecha</th><th>Cliente</th><th>Servicio</th><th>Medio</th><th>Cobrado</th></tr>
+      {% for s in svc %}
+        <tr><td>{{ s.date }}</td><td>{{ s.client_name }}</td><td>{{ s.service.name }}</td><td>{{ s.medio }}</td><td>{{ ar(s.price_charged) }}</td></tr>
+      {% endfor %}
+      {% if not svc %}<tr><td colspan="5">Sin registros.</td></tr>{% endif %}
+    </table>
+  </div>
+  <div class="card">
+    <h3>Últimas ventas de productos</h3>
+    <table>
+      <tr><th>Fecha</th><th>Producto</th><th>Medio</th><th>Cant.</th><th>Cobrado</th></tr>
+      {% for p in prd %}
+        <tr><td>{{ p.date }}</td><td>{{ p.product.name }}</td><td>{{ p.medio }}</td><td>{{ p.qty }}</td><td>{{ ar(p.price_charged) }}</td></tr>
+      {% endfor %}
+      {% if not prd %}<tr><td colspan="5">Sin registros.</td></tr>{% endif %}
+    </table>
+  </div>
+</div>
+<div class="card total">
+  <div>Total facturado<span>{{ ar(total) }}</span></div>
+  <div>Comisión 40% (base efectivo)<span>{{ ar(com_total) }}</span></div>
+</div>
+{% endblock %}

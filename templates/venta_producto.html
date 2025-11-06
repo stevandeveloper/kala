@@ -1,0 +1,16 @@
+{% extends "base.html" %}
+{% block content %}
+<h2>Vender producto</h2>
+<div class="card">
+  <form method="post">
+    <label>Fecha</label><input type="date" name="date" value="{{ today }}">
+    <label>Producto</label>
+    <select name="product_id">
+      {% for p in products %}<option value="{{ p.id }}">{{ p.name }} — Efectivo {{ ar(p.efectivo) }}{% if p.transf %} / Transf/Tj {{ ar(p.transf) }}{% else %} / Transf/Tj (+15%){% endif %} — Stock {{ p.stock }}</option>{% endfor %}
+    </select>
+    <label>Medio de pago</label><select name="medio"><option>Efectivo</option><option>Transferencia</option><option>Tarjeta</option></select>
+    <label>Cantidad</label><input type="number" name="qty" value="1" min="1">
+    <button>Guardar</button>
+  </form>
+</div>
+{% endblock %}
