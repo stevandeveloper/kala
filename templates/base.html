@@ -7,25 +7,27 @@
   <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
 </head>
 <body>
+
 <header>
   <div class="brand">KALA</div>
 
   {% if current_user.is_authenticated %}
-  <nav>
-    <a href="{{ url_for('home') }}">Inicio</a>
-    <a href="{{ url_for('venta_servicio') }}">Servicio</a>
-    <a href="{{ url_for('venta_producto') }}">Producto</a>
-    <a href="{{ url_for('mis_comisiones') }}">Mis comisiones</a>
+    <nav>
+      <a href="{{ url_for('home') }}">Inicio</a>
+      <a href="{{ url_for('venta_servicio') }}">Servicio</a>
+      <a href="{{ url_for('venta_producto') }}">Producto</a>
+      <a href="{{ url_for('mis_comisiones') }}">Mis comisiones</a>
 
-    {% if current_user.role == 'admin' %}
-      <a href="{{ url_for('admin_catalog') }}">Catálogo</a>
-      <a href="{{ url_for('admin_users') }}">Usuarios</a>
-      <a href="{{ url_for('admin_seed') }}">Seed</a>
-    {% endif %}
+      {% if current_user.role == 'admin' %}
+        <a href="{{ url_for('admin_catalog') }}">Catálogo</a>
+        <a href="{{ url_for('admin_users') }}">Usuarios</a>
+        <a href="{{ url_for('admin_seed') }}">Seed</a>
+      {% endif %}
 
-    <a href="{{ url_for('logout') }}">Salir</a>
-  </nav>
+      <a href="{{ url_for('logout') }}">Salir</a>
+    </nav>
   {% endif %}
+
 </header>
 
 <main>
